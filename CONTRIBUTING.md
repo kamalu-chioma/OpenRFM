@@ -9,7 +9,7 @@ Thank you for considering contributing to OpenRFM! We welcome all types of contr
 To contribute to OpenRFM, start by forking the repository on GitHub. After forking, clone the repository to your local machine:
 
 ```bash
-git clone https://github.com/yourusername/OpenRFM.git
+git clone https://github.com/kamalu-chioma/OpenRFM.git
 cd OpenRFM
 ```
 
