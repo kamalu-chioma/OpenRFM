@@ -1,4 +1,4 @@
-## OpenRFM - RFM Customer Analyzer
+# OpenRFM - RFM Customer Analyzer
 
 ## Welcome to RFM Customer Analyzer
 
