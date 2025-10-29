@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenRFM &mdash; Customer Intelligence, Simplified</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body>
+    <header class="hero">
+        <div class="hero__content container">
+            <div>
+                <span class="badge">New</span>
+                <h1>Upload any dataset. We'll find the right columns.</h1>
+                <p>
+                    OpenRFM now understands unfamiliar schemas and cleans up your data automatically.
+                    Drop in CSV or Excel exports from your CRM, point of sale, or billing system &mdash;
+                    the enhanced pipeline will detect customer IDs, transaction dates, and spend values
+                    even when the headers don't match our defaults.
+                </p>
+                <ul class="highlight-list">
+                    <li>Automatic column detection with smart heuristics.</li>
+                    <li>Step-by-step progress feedback during processing.</li>
+                    <li>Actionable validation messages to keep you moving forward.</li>
+                </ul>
+            </div>
+            <div class="hero__card" aria-labelledby="upload-heading">
+                <h2 id="upload-heading">Start your RFM analysis</h2>
+                <p class="muted">Upload a CSV or Excel file to begin.</p>
+                <form id="upload-form">
+                    <label class="file-input" for="file">Choose file</label>
+                    <input type="file" id="file" name="file" accept=".csv,.xlsx" required />
+                    <label for="cluster-size">Cluster strategy</label>
+                    <select id="cluster-size" name="cluster-size">
+                        <option value="auto" selected>Auto &mdash; let OpenRFM decide</option>
+                        <option value="3">3 clusters</option>
+                        <option value="4">4 clusters</option>
+                        <option value="5">5 clusters</option>
+                        <option value="6">6 clusters</option>
+                        <option value="7">7 clusters</option>
+                        <option value="8">8 clusters</option>
+                        <option value="9">9 clusters</option>
+                        <option value="10">10 clusters</option>
+                    </select>
+                    <button type="submit" class="primary-button">Run analysis</button>
+                </form>
+                <p id="status-message" role="status" aria-live="polite"></p>
+                <div id="progress-feed" class="progress-feed" aria-live="polite"></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="section">
+            <h2>What happens after you upload?</h2>
+            <div class="steps">
+                <article class="step">
+                    <h3>1. Smart schema detection</h3>
+                    <p>
+                        We run adaptive checks across every column to find the best match for customer IDs,
+                        transaction timestamps, and monetary amounts&mdash;no manual mapping required.
+                    </p>
+                </article>
+                <article class="step">
+                    <h3>2. Guided validation</h3>
+                    <p>
+                        If we spot potential issues (like dates stored as text), you will see clear guidance
+                        in the activity feed so you can fix and retry quickly.
+                    </p>
+                </article>
+                <article class="step">
+                    <h3>3. Insight-ready output</h3>
+                    <p>
+                        Once processing completes, download the enriched dataset with RFM scores, tenure metrics,
+                        and customer lifetime value (LTV) ready for activation.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <section class="section section--alt">
+            <h2>Need a sample dataset?</h2>
+            <p>
+                Try <a href="{{ url_for('static', filename='sample/OpenRFM_sample_data.csv') }}">this ready-to-use file</a>
+                to explore the experience before uploading your own customer exports.
+            </p>
+        </section>
+
+        <section class="section">
+            <h2>Exported results</h2>
+            <div id="result-table" class="table-wrapper" hidden>
+                <table>
+                    <thead id="result-header"></thead>
+                    <tbody id="result-body"></tbody>
+                </table>
+            </div>
+            <a id="download-link" class="secondary-button" href="#" hidden download>Download processed data</a>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container footer__content">
+            <p>Built by the OpenRFM community to make customer segmentation approachable for every team.</p>
+            <a href="https://github.com/kamalu-chioma/OpenRFM" target="_blank" rel="noopener" class="footer__link">View on GitHub</a>
+        </div>
+    </footer>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-9IYQasofkCHDs8Pw6VFHCY8UA8f3ahfbk2Q/tuMJ+4K0Ysqa4UTeZFZow00FQ7wK" crossorigin="anonymous"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
