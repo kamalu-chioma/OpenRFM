@@ -132,14 +132,56 @@ def process_rfm():
         df.dropna(subset=["CustomerID", "TransactionDate"], inplace=True)
         current_date = datetime.today()
 
-        recency_df = df.groupby("CustomerID")["TransactionDate"].max().reset_index()
-        recency_df["Recency"] = (current_date - recency_df["TransactionDate"]).dt.days
+        customer_dates = (
+            df.groupby("CustomerID")["TransactionDate"]
+            .agg(FirstPurchaseDate="min", LastPurchaseDate="max")
+            .reset_index()
+        )
+        customer_dates["Recency"] = (
+            current_date - customer_dates["LastPurchaseDate"]
+        ).dt.days
 
         frequency_df = df.groupby("CustomerID").size().reset_index(name="Frequency")
         monetary_df = df.groupby("CustomerID")["TransactionAmount"].sum().reset_index(name="Monetary")
 
-        rfm_df = recency_df.merge(frequency_df, on="CustomerID").merge(monetary_df, on="CustomerID")
-        rfm_df.fillna(0, inplace=True)
+        rfm_df = (
+            customer_dates
+            .merge(frequency_df, on="CustomerID")
+            .merge(monetary_df, on="CustomerID")
+        )
+
+        rfm_df["CustomerTenureDays"] = (
+            current_date - rfm_df["FirstPurchaseDate"]
+        ).dt.days.clip(lower=1)
+        rfm_df["CustomerTenureYears"] = rfm_df["CustomerTenureDays"] / 365.25
+        rfm_df["AverageOrderValue"] = np.where(
+            rfm_df["Frequency"] > 0,
+            rfm_df["Monetary"] / rfm_df["Frequency"],
+            0,
+        )
+        rfm_df["PurchaseFrequencyPerYear"] = rfm_df["Frequency"] / np.maximum(
+            rfm_df["CustomerTenureYears"],
+            1 / 365.25,
+        )
+        # Lifetime Value (LTV) approximates customer revenue over their observed lifespan.
+        # Formula: LTV = Average Order Value * Purchase Frequency (per year) * Customer Tenure (years)
+        rfm_df["LTV"] = (
+            rfm_df["AverageOrderValue"]
+            * rfm_df["PurchaseFrequencyPerYear"]
+            * rfm_df["CustomerTenureYears"]
+        )
+
+        numeric_columns = [
+            "Recency",
+            "Frequency",
+            "Monetary",
+            "CustomerTenureDays",
+            "CustomerTenureYears",
+            "AverageOrderValue",
+            "PurchaseFrequencyPerYear",
+            "LTV",
+        ]
+        rfm_df[numeric_columns] = rfm_df[numeric_columns].fillna(0)
 
         scaler = StandardScaler()
         rfm_df[["Recency", "Frequency", "Monetary"]] = scaler.fit_transform(rfm_df[["Recency", "Frequency", "Monetary"]])
