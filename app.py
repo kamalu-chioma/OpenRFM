@@ -10,8 +10,8 @@ from flask_socketio import SocketIO
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import re
-from fuzzywuzzy import process
+
+from schemas import SchemaInferenceError, infer_and_standardize_rfm
 
 
 app = Flask(__name__)
@@ -105,46 +105,29 @@ def process_rfm():
 
 
 
-        COLUMN_MAP = {
-            "CustomerID": ["CustomerID", "Cust_ID", "customer id", "client_id", "UserID"],
-            "TransactionDate": ["TransactionDate", "InvoiceDate", "Order_Date", "TransDate", "Purchase_Date"],
-            "TransactionAmount": ["TransactionAmount", "Amount", "SalesAmount", "Revenue", "Transaction_Value"]
-        }
+        socketio.emit("progress", {"message": "Inferring schema..."})
 
-        def find_best_match(columns, possible_names):
-            """ Matches column names using regex and fuzzy matching """
-            for expected, variants in possible_names.items():
-                matches = [col for col in columns if any(re.search(pattern, col, re.IGNORECASE) for pattern in variants)]
-                if matches:
-                    return expected, matches[0]  # Return standard name + matched column
-            return None, None  # No match found
+        # Create a derived amount column when Quantity/UnitPrice pairs exist to
+        # preserve legacy support for invoices that do not expose totals.
+        if {"Quantity", "UnitPrice"}.issubset(set(df.columns)):
+            df = df.copy()
+            df["__calculated_amount"] = df["Quantity"] * df["UnitPrice"]
 
-        detected_columns = {}
-        for key, variants in COLUMN_MAP.items():
-            standard_name, matched_name = find_best_match(df.columns, {key: variants})
-            if matched_name:
-                detected_columns[standard_name] = matched_name
+        try:
+            df, inference_details = infer_and_standardize_rfm(df, log=app.logger)
+        except SchemaInferenceError as exc:
+            app.logger.warning("Schema inference failed: %s", exc)
+            return jsonify({"error": str(exc), "details": exc.details}), 400
 
-        required_columns = ["CustomerID", "TransactionDate", "TransactionAmount"]
-        if not all(col in detected_columns for col in required_columns):
-            return jsonify({"error": f"Missing required columns: {set(required_columns) - set(detected_columns.keys())}"}), 400
+        app.logger.info("Inferred schema mapping: %s", inference_details.get("mapping"))
 
-        df = df.rename(columns=detected_columns)  # ✅ Rename columns to standard format
+        if "__calculated_amount" in df.columns:
+            df = df.drop(columns=["__calculated_amount"])
 
-
+        for warning in inference_details.get("warnings", []):
+            socketio.emit("progress", {"message": warning})
 
         socketio.emit("progress", {"message": "Processing Data..."})
-        df.fillna(0, inplace=True)
-
-        if set(["CustomerID", "TransactionDate", "TransactionAmount"]).issubset(df.columns):
-            df["TransactionDate"] = pd.to_datetime(df["TransactionDate"], errors='coerce')
-        elif set(["InvoiceDate", "Quantity", "UnitPrice", "CustomerID"]).issubset(df.columns):
-            df["InvoiceDate"] = pd.to_datetime(df["InvoiceDate"], errors='coerce')
-            df["TransactionAmount"] = df["Quantity"] * df["UnitPrice"]
-            df.rename(columns={"InvoiceDate": "TransactionDate"}, inplace=True)
-            df = df[["CustomerID", "TransactionDate", "TransactionAmount"]]
-        else:
-            return jsonify({"error": "Invalid CSV format. Expected columns missing."}), 400
 
         socketio.emit("progress", {"message": "Calculating RFM Metrics..."})
         df.dropna(subset=["CustomerID", "TransactionDate"], inplace=True)
@@ -283,10 +266,14 @@ def process_rfm():
         output_file = os.path.join(UPLOAD_FOLDER, "rfm_results.csv")
         rfm_df.to_csv(output_file, index=False)
 
-        return jsonify({
+        response_payload = {
             "data": rfm_df[["CustomerID", "Cluster", "Cluster Meaning", "Likely_Churn", "LTV"]].to_dict(orient="records"),
-            "download_link": "/download_csv"
-        })
+            "download_link": "/download_csv",
+            "messages": inference_details.get("warnings", []),
+            "schema_mapping": inference_details.get("mapping"),
+        }
+
+        return jsonify(response_payload)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
