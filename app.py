@@ -266,7 +266,7 @@ def process_rfm():
         rfm_df.to_csv(output_file, index=False)
 
         return jsonify({
-            "data": rfm_df[["CustomerID", "Cluster", "Cluster Meaning", "Likely_Churn"]].to_dict(orient="records"),
+            "data": rfm_df[["CustomerID", "Cluster", "Cluster Meaning", "Likely_Churn", "LTV"]].to_dict(orient="records"),
             "download_link": "/download_csv"
         })
 
