@@ -27,6 +27,24 @@ limiter = Limiter(
     default_limits=["1000 per day", "100 per hour"]  # Global limits
 )
 
+
+def calculate_ltv(average_order_value, purchase_frequency_per_year, customer_tenure_years):
+    """Return the lifetime value (LTV) for the provided customer metrics.
+
+    LTV describes the amount of revenue a customer is expected to generate
+    during their observed tenure. The formula multiplies the typical order
+    value, how often the customer orders per year, and how long they have been
+    active with the business. The function accepts either scalar numbers or
+    pandas Series objects, enabling vectorised calculations during the RFM
+    pipeline.
+    """
+
+    return (
+        average_order_value
+        * purchase_frequency_per_year
+        * customer_tenure_years
+    )
+
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[-1].lower() in ALLOWED_EXTENSIONS
 
@@ -165,10 +183,10 @@ def process_rfm():
         )
         # Lifetime Value (LTV) approximates customer revenue over their observed lifespan.
         # Formula: LTV = Average Order Value * Purchase Frequency (per year) * Customer Tenure (years)
-        rfm_df["LTV"] = (
-            rfm_df["AverageOrderValue"]
-            * rfm_df["PurchaseFrequencyPerYear"]
-            * rfm_df["CustomerTenureYears"]
+        rfm_df["LTV"] = calculate_ltv(
+            rfm_df["AverageOrderValue"],
+            rfm_df["PurchaseFrequencyPerYear"],
+            rfm_df["CustomerTenureYears"],
         )
 
         numeric_columns = [
